@@ -1,82 +1,72 @@
+# rag_pipeline.py
 import os
-from huggingface_hub import InferenceClient
+from dotenv import load_dotenv
+from huggingface_hub import login
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
+from langchain.llms import HuggingFaceHub
 
 # =========================
-# CONFIG
+# Load environment variables
 # =========================
-FAISS_DIR = "data/faiss_index"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-MODEL_ID = "mistralai/Mistral-7B-Instruct-v0.3"
-HF_TOKEN = os.getenv("HF_TOKEN")  # Set this in .env file or Streamlit secrets
-
+# Login to Hugging Face Hub if token is available
+if HF_TOKEN:
+    try:
+        login(HF_TOKEN)
+        print("✅ Hugging Face login successful")
+    except Exception as e:
+        print(f"⚠️ Hugging Face login failed: {e}")
+else:
+    print("⚠️ No HF_TOKEN found in .env file. Some models may fail to load.")
 
 # =========================
-# LOAD FAISS INDEX
+# Load FAISS Vector Store
 # =========================
-def load_vectorstore():
+def load_vectorstore(persist_directory="data/faiss_index"):
     """Load FAISS index with HuggingFace embeddings."""
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-    vectorstore = FAISS.load_local(
-        FAISS_DIR,
-        embeddings,
-        allow_dangerous_deserialization=True
-    )
+    embedding_model = "sentence-transformers/all-MiniLM-L6-v2"  # Can swap for lighter one if needed
+    embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+    vectorstore = FAISS.load_local(persist_directory, embeddings, allow_dangerous_deserialization=True)
     return vectorstore
 
-
 # =========================
-# BUILD PROMPT
+# Setup RetrievalQA
 # =========================
-def build_prompt(query, docs):
-    """Builds a structured prompt for the LLM using retrieved docs."""
-    context = "\n\n".join([d.page_content for d in docs])
-    prompt = f"""
-You are a helpful science tutor for class 8 students.
-Answer the question using the provided NCERT textbook context.
-Keep the explanation simple, accurate, and engaging.
-If the answer is not in the context, say you don't know.
-
-Question: {query}
-
-Context:
-{context}
-
-Answer:
-"""
-    return prompt
-
-
-# =========================
-# RUN QA PIPELINE
-# =========================
-def rag_qa(query: str, top_k: int = 3):
-    """Main RAG QA pipeline."""
-    # Load vector DB
+def rag_qa(query: str):
+    """Retrieve and answer a query using FAISS + HuggingFaceHub LLM."""
     vectorstore = load_vectorstore()
-    retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
-    docs = retriever.get_relevant_documents(query)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    # Build prompt
-    prompt = build_prompt(query, docs)
+    prompt_template = """
+    You are an NCERT Science AI Tutor. Use the provided context to answer questions clearly and accurately.
 
-    # Query Hugging Face inference endpoint
-    client = InferenceClient(model=MODEL_ID, token=HF_TOKEN)
-    response = client.text_generation(
-        prompt,
-        max_new_tokens=300,
-        temperature=0.2,
-        do_sample=True
+    Context: {context}
+
+    Question: {question}
+
+    Answer:"""
+
+    PROMPT = PromptTemplate(
+        template=prompt_template,
+        input_variables=["context", "question"]
     )
 
-    # Extract sources
-    sources = []
-    for d in docs:
-        if "source" in d.metadata:
-            sources.append(d.metadata["source"])
-        else:
-            sources.append(d.page_content[:150] + "...")
+    llm = HuggingFaceHub(
+        repo_id="google/flan-t5-base",  # free & small LLM
+        model_kwargs={"temperature": 0.2, "max_length": 512}
+    )
 
-    return response, sources
+    qa = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=retriever,
+        chain_type_kwargs={"prompt": PROMPT}
+    )
+
+    result = qa({"query": query})
+    return result["result"], result.get("source_documents", [])
