@@ -1,7 +1,7 @@
 # rag_pipeline.py
 import os
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from langchain.llms import HuggingFaceHub
@@ -11,22 +11,19 @@ from langchain.llms import HuggingFaceHub
 # =========================
 FAISS_DIR = "data/faiss_index"
 
-# ⚠️ Hardcode your Hugging Face token here
 HF_TOKEN = "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"
 
 if not HF_TOKEN or HF_TOKEN.startswith("hf_xxxx"):
-    raise ValueError("❌ Please set your Hugging Face API key in rag_pipeline.py!")
+    raise ValueError("❌ Please set your Hugging Face API key!")
 
 # =========================
 # Load FAISS Vector Store
 # =========================
 def load_vectorstore(persist_directory=FAISS_DIR):
     embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-    embeddings = HuggingFaceEmbeddings(
-        model_name=embedding_model,
-        cache_folder="model_cache",
-        encode_kwargs={"normalize_embeddings": True},
-        model_kwargs={"use_auth_token": HF_TOKEN}  # ✅ force HF token usage
+    embeddings = HuggingFaceInferenceEmbeddings(
+        api_key=HF_TOKEN,
+        model_name=embedding_model
     )
     vectorstore = FAISS.load_local(
         persist_directory,
@@ -59,8 +56,8 @@ Answer:
     )
 
     llm = HuggingFaceHub(
-        repo_id="google/flan-t5-base",   # ✅ safe open model
-        model_kwargs={"temperature": 0.2, "max_length": 512},
+        repo_id="google/flan-t5-base",  # ✅ Free + lighter model
+        model_kwargs={"temperature": 0.2, "max_new_tokens": 512},
         huggingfacehub_api_token=HF_TOKEN
     )
 
