@@ -14,7 +14,7 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 # HuggingFace model for answering
 MODEL_ID = "mistralai/Mistral-7B-Instruct-v0.3"
-HF_TOKEN = os.getenv("HF_TOKEN")  # <-- set your token in environment
+HF_TOKEN = os.getenv("HF_TOKEN")  # <-- set your Hugging Face token
 
 
 # =========================
@@ -37,7 +37,7 @@ def build_prompt(query, docs):
 You are a helpful science tutor for class 8 students. 
 Answer the question using the provided textbook context. 
 Keep the answer simple, accurate, and engaging. 
-If you don't know, say you don't know.
+If the answer is not in the context, reply with "I don't know."
 
 Question: {query}
 
@@ -52,17 +52,24 @@ Answer:
 # =========================
 # RUN QA
 # =========================
-def answer_query(query, top_k=3):
+def rag_qa(query, top_k=3):
+    """Main QA function. Returns (answer, sources)."""
+    # Step 1: Load FAISS
     vectorstore = load_vectorstore()
     retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
     docs = retriever.get_relevant_documents(query)
 
+    # Step 2: Build prompt
     prompt = build_prompt(query, docs)
 
+    # Step 3: Query HF inference API
     client = InferenceClient(model=MODEL_ID, token=HF_TOKEN)
     response = client.text_generation(prompt, max_new_tokens=300)
 
-    return response
+    # Step 4: Collect sources (metadata/page numbers if available)
+    sources = [d.metadata.get("source", "Unknown source") for d in docs]
+
+    return response, sources
 
 
 # =========================
@@ -80,4 +87,6 @@ if __name__ == "__main__":
         query = input("Ask a question: ")
         if query.lower() in ["exit", "quit"]:
             break
-        print("\nAnswer:", answer_query(query), "\n")
+        answer, sources = rag_qa(query)
+        print("\nAnswer:", answer)
+        print("\nSources:", sources, "\n")
