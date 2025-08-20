@@ -1,30 +1,34 @@
 # rag_pipeline.py
 import os
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceInferenceEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from langchain.llms import HuggingFaceHub
+from langchain_huggingface import HuggingFaceInferenceEmbeddings  # ✅ correct import
 
 # =========================
 # CONFIG
 # =========================
 FAISS_DIR = "data/faiss_index"
 
-HF_TOKEN = "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"
+# ⚠️ Put your Hugging Face token here (or set as environment variable HF_TOKEN)
+HF_TOKEN = os.getenv("HF_TOKEN") or "hf_xxxxxxx"  # replace with your token
 
 if not HF_TOKEN or HF_TOKEN.startswith("hf_xxxx"):
-    raise ValueError("❌ Please set your Hugging Face API key!")
+    raise ValueError("❌ Please set your Hugging Face API key in rag_pipeline.py!")
 
 # =========================
 # Load FAISS Vector Store
 # =========================
 def load_vectorstore(persist_directory=FAISS_DIR):
-    embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    """Load FAISS index with HuggingFace embeddings."""
+    embedding_model = "sentence-transformers/all-MiniLM-L6-v2"  # small + reliable
+
     embeddings = HuggingFaceInferenceEmbeddings(
-        api_key=HF_TOKEN,
-        model_name=embedding_model
+        model_name=embedding_model,
+        api_key=HF_TOKEN
     )
+
     vectorstore = FAISS.load_local(
         persist_directory,
         embeddings,
@@ -56,7 +60,7 @@ Answer:
     )
 
     llm = HuggingFaceHub(
-        repo_id="google/flan-t5-base",  # ✅ Free + lighter model
+        repo_id="mistralai/Mistral-7B-Instruct-v0.3",  # can change to flan-t5-base if too heavy
         model_kwargs={"temperature": 0.2, "max_new_tokens": 512},
         huggingfacehub_api_token=HF_TOKEN
     )
