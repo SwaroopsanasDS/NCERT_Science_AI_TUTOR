@@ -5,5 +5,7 @@ PyPDF2
 faiss-cpu
 langchain
 langchain-community
+langchain-openai
+langchain-huggingface   # ✅ add this
 sentence-transformers
 huggingface_hub
