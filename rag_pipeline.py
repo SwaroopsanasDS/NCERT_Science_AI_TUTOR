@@ -21,7 +21,7 @@ if not HF_TOKEN or HF_TOKEN.startswith("hf_xxxx"):
 # Load FAISS Vector Store
 # =========================
 def load_vectorstore(persist_directory=FAISS_DIR):
-    embedding_model = "google/flan-t5-base"
+    embedding_model = "sentence-transformers/all-MiniLM-L6-v2"  # ✅ Correct embedding model
     embeddings = HuggingFaceEmbeddings(
         model_name=embedding_model,
         cache_folder="model_cache",
@@ -57,9 +57,10 @@ Answer:
         input_variables=["context", "question"]
     )
 
+    # ✅ Use a public, free-to-access model
     llm = HuggingFaceHub(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-        model_kwargs={"temperature": 0.2, "max_new_tokens": 512},
+        repo_id="google/flan-t5-base",   # swapped from mistral → flan-t5 (public)
+        model_kwargs={"temperature": 0.2, "max_length": 512},
         huggingfacehub_api_token=HF_TOKEN
     )
 
