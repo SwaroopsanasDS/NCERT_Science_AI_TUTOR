@@ -1,6 +1,5 @@
 # rag_pipeline.py
 import os
-from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
@@ -8,20 +7,21 @@ from langchain.chains import RetrievalQA
 from langchain.llms import HuggingFaceHub
 
 # =========================
-# Load Hugging Face Token
+# CONFIG
 # =========================
-load_dotenv()
-HF_TOKEN = os.getenv("HF_TOKEN") or os.environ.get("HF_TOKEN")
+FAISS_DIR = "data/faiss_index"
 
-if not HF_TOKEN:
-    raise ValueError("❌ Missing Hugging Face token! Please add HF_TOKEN in Streamlit Secrets.")
+# ⚠️ Hardcode your Hugging Face token here
+HF_TOKEN = "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"
+
+if not HF_TOKEN or HF_TOKEN.startswith("hf_xxxx"):
+    raise ValueError("❌ Please set your Hugging Face API key in rag_pipeline.py!")
 
 # =========================
 # Load FAISS Vector Store
 # =========================
-def load_vectorstore(persist_directory="data/faiss_index"):
-    """Load FAISS index with HuggingFace embeddings."""
-    embedding_model = "sentence-transformers/paraphrase-MiniLM-L3-v2"  
+def load_vectorstore(persist_directory=FAISS_DIR):
+    embedding_model = "sentence-transformers/paraphrase-MiniLM-L3-v2"
     embeddings = HuggingFaceEmbeddings(
         model_name=embedding_model,
         cache_folder="model_cache",
@@ -58,7 +58,7 @@ Answer:
     )
 
     llm = HuggingFaceHub(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.3",  # better than Flan-T5
+        repo_id="mistralai/Mistral-7B-Instruct-v0.3",
         model_kwargs={"temperature": 0.2, "max_new_tokens": 512},
         huggingfacehub_api_token=HF_TOKEN
     )
