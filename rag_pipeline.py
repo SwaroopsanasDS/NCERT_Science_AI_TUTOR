@@ -21,7 +21,7 @@ if not HF_TOKEN or HF_TOKEN.startswith("hf_xxxx"):
 # Load FAISS Vector Store
 # =========================
 def load_vectorstore(persist_directory=FAISS_DIR):
-    embedding_model = "sentence-transformers/paraphrase-MiniLM-L3-v2"
+    embedding_model = "google/flan-t5-base"
     embeddings = HuggingFaceEmbeddings(
         model_name=embedding_model,
         cache_folder="model_cache",
