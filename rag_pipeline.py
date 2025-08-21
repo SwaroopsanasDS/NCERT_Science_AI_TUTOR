@@ -1,6 +1,5 @@
 # rag_pipeline.py
 import os
-from typing import Tuple, List
 import logging
 from pathlib import Path
 
@@ -31,7 +30,7 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 # =========================
 # Load FAISS Vector Store
 # =========================
-def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
+def load_vectorstore(persist_directory: str = FAISS_DIR):
     try:
         # Check if the FAISS index exists
         if not os.path.exists(persist_directory):
@@ -63,7 +62,7 @@ def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
 # =========================
 # RAG (Retrieval + Generation)
 # =========================
-def rag_qa(query: str) -> Tuple[str, List[str]]:
+def rag_qa(query: str):
     try:
         # Check if HF_TOKEN is available
         if not HF_TOKEN:
