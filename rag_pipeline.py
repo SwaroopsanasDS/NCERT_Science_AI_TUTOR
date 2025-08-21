@@ -2,6 +2,7 @@
 import os
 import logging
 from pathlib import Path
+from typing import Tuple, List
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -62,7 +63,7 @@ def load_vectorstore(persist_directory: str = FAISS_DIR):
 # =========================
 # RAG (Retrieval + Generation)
 # =========================
-def rag_qa(query: str):
+def rag_qa(query: str) -> Tuple[str, List[str]]:
     try:
         # Check if HF_TOKEN is available
         if not HF_TOKEN:
@@ -85,10 +86,16 @@ Answer:
 """
         prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
+        # Explicitly set the task for the model
         llm = HuggingFaceHub(
             repo_id=LLM_REPO_ID,
-            model_kwargs={"temperature": 0.2, "max_length": 512},
-            huggingfacehub_api_token=HF_TOKEN
+            model_kwargs={
+                "temperature": 0.2, 
+                "max_length": 512,
+                "max_new_tokens": 256
+            },
+            huggingfacehub_api_token=HF_TOKEN,
+            task="text2text-generation"  # Explicitly set the task
         )
 
         qa = RetrievalQA.from_chain_type(
@@ -99,7 +106,7 @@ Answer:
             return_source_documents=True,
         )
 
-        result = qa({"query": query})
+        result = qa.invoke({"query": query})
         
         # Extract source information
         sources = []
