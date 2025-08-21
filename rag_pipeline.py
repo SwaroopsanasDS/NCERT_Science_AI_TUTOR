@@ -1,29 +1,38 @@
+# rag_pipeline.py
 import os
-from typing import List, Tuple
-from langchain_community.vectorstores import FAISS
-from langchain.prompts import PromptTemplate
+from typing import Tuple
 from langchain.chains import RetrievalQA
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.llms import HuggingFaceHub
+from langchain.prompts import PromptTemplate
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # =========================
 # CONFIG
 # =========================
 FAISS_DIR = "data/faiss_index"
-HF_TOKEN = os.getenv("HF_TOKEN")  # Set in Streamlit Secrets
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 LLM_REPO_ID = "google/flan-t5-base"
 
+# HF_TOKEN from Streamlit secrets
+HF_TOKEN = os.getenv("HF_TOKEN")
+if not HF_TOKEN:
+    raise ValueError("Set your Hugging Face token in Streamlit secrets as HF_TOKEN.")
+
 # =========================
-# Load FAISS Vector Store
+# Load FAISS vectorstore
 # =========================
 def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-    vectorstore = FAISS.load_local(persist_directory, embeddings)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL, model_kwargs={"device": "cpu"})
+    vectorstore = FAISS.load_local(
+        persist_directory,
+        embeddings,
+        allow_dangerous_deserialization=True
+    )
     return vectorstore
 
 # =========================
-# RAG (Retrieval + Generation)
+# RAG QA
 # =========================
 def rag_qa(query: str) -> Tuple[str, list]:
     vectorstore = load_vectorstore()
@@ -41,7 +50,10 @@ Question: {question}
 
 Answer:
 """
-    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    prompt = PromptTemplate(
+        template=prompt_template,
+        input_variables=["context", "question"]
+    )
 
     llm = HuggingFaceHub(
         repo_id=LLM_REPO_ID,
@@ -55,8 +67,9 @@ Answer:
         retriever=retriever,
         chain_type="stuff",
         chain_type_kwargs={"prompt": prompt},
-        return_source_documents=True,
+        return_source_documents=True
     )
 
     result = qa({"query": query})
-    return result["result"], result.get("source_documents", [])
+    sources = [doc.metadata.get("source", "Unknown") for doc in result.get("source_documents", [])]
+    return result["result"], sources
