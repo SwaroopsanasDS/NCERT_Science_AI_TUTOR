@@ -114,8 +114,8 @@ Answer:
 
     # HuggingFaceHub LLM
     try:
-        llm = HuggingFaceHub.from_model_id(
-            model_id=LLM_REPO_ID,
+        llm = HuggingFaceHub(
+            repo_id=LLM_REPO_ID,
             model_kwargs={"temperature": 0.2, "max_new_tokens": 256},
             huggingfacehub_api_token=HF_TOKEN
         )
