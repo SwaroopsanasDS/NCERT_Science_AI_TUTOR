@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
 from rag_pipeline import rag_qa
+import os
 
 st.set_page_config(
     page_title="Curiosity AI – Science Tutor",
@@ -37,4 +38,5 @@ if st.button("✨ Ask AI"):
                 else:
                     st.info("No sources found for this answer.")
             except Exception as e:
-                st.error(f"❌ Error running RAG QA: {e}")
+                st.error(f"❌ Error running RAG QA: {str(e)}")
+                st.info("Please make sure the FAISS index is properly built and available.")
