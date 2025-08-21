@@ -1,12 +1,11 @@
 # rag_pipeline.py
 import os
-import numpy as np
 from typing import List, Tuple
-from huggingface_hub import InferenceClient, HfApi
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from langchain.llms import HuggingFaceHub
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from dotenv import load_dotenv
 
 # -------------------
@@ -28,46 +27,6 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 LLM_REPO_ID = "google/flan-t5-base"  # public model
 
 # -------------------
-# Validate Hugging Face repo access
-# -------------------
-def validate_hf_token_and_repo(token: str, repo_id: str):
-    try:
-        api = HfApi(token=token)
-        model_info = api.model_info(repo_id)
-        print(f"✅ Hugging Face token works. Model '{model_info.modelId}' is accessible.")
-    except Exception as e:
-        raise ValueError(
-            f"❌ Cannot access Hugging Face model '{repo_id}'. Check your HF_TOKEN and repo ID.\nDetails: {e}"
-        )
-
-validate_hf_token_and_repo(HF_TOKEN, LLM_REPO_ID)
-
-# -------------------
-# Minimal HF API Embeddings (no local downloads)
-# -------------------
-class HFAPIEmbeddings:
-    def __init__(self, model_name: str, api_key: str):
-        self.model_name = model_name
-        self.client = InferenceClient(model=model_name, token=api_key)
-
-    def _embed_batch(self, texts: List[str]) -> List[List[float]]:
-        vectors = []
-        for t in texts:
-            out = self.client.feature_extraction(t, truncate=True)
-            if isinstance(out, list) and len(out) > 0 and isinstance(out[0], list):
-                vec = np.array(out).mean(axis=0).tolist()
-            else:
-                vec = list(out)
-            vectors.append(vec)
-        return vectors
-
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        return self._embed_batch(texts)
-
-    def embed_query(self, text: str) -> List[float]:
-        return self._embed_batch([text])[0]
-
-# -------------------
 # Load FAISS
 # -------------------
 def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
@@ -75,7 +34,7 @@ def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
         raise FileNotFoundError(
             f"FAISS index not found at '{persist_directory}'. Run preprocessing first."
         )
-    embeddings = HFAPIEmbeddings(model_name=EMBEDDING_MODEL, api_key=HF_TOKEN)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
     vectorstore = FAISS.load_local(
         persist_directory,
         embeddings,
@@ -84,7 +43,7 @@ def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
     return vectorstore
 
 # -------------------
-# RAG QA (latest LangChain compatible)
+# RAG QA
 # -------------------
 def rag_qa(query: str) -> Tuple[str, list]:
     if not query.strip():
@@ -118,7 +77,7 @@ Answer:
             repo_id=LLM_REPO_ID,
             model_kwargs={"temperature": 0.2, "max_new_tokens": 256},
             huggingfacehub_api_token=HF_TOKEN,
-            task="text2text-generation"  # must set task
+            task="text2text-generation"  # must specify task for Flan-T5
         )
     except Exception as e:
         return f"❌ Error initializing HuggingFaceHub LLM: {e}", []
