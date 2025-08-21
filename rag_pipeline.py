@@ -9,10 +9,11 @@ logger = logging.getLogger(__name__)
 
 # Import with error handling
 try:
-    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_community.embeddings import HuggingFaceInferenceEmbeddings
     from langchain_community.vectorstores import FAISS
     from langchain.prompts import PromptTemplate
     from langchain.chains import RetrievalQA
+    from langchain_community.llms import HuggingFaceHub
     from transformers import pipeline
     logger.info("✅ All imports successful")
 except ImportError as e:
