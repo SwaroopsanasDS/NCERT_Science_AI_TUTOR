@@ -2,7 +2,7 @@ streamlit==1.27.0
 python-dotenv==1.0.0
 tqdm==4.66.1
 PyPDF2==3.0.1
-faiss-cpu==1.7.4
+faiss-cpu==1.7.4.post2
 langchain==0.1.202
 langchain-community==0.0.259
 sentence-transformers==2.2.2
