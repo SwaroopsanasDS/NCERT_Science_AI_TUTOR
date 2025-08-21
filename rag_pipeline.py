@@ -12,7 +12,7 @@ from langchain_huggingface import HuggingFaceInferenceEmbeddings  # ✅ correct 
 FAISS_DIR = "data/faiss_index"
 
 # ⚠️ Put your Hugging Face token here (or set as environment variable HF_TOKEN)
-HF_TOKEN = os.getenv("HF_TOKEN") or "hf_xxxxxxx"  # replace with your token
+HF_TOKEN = os.getenv("HF_TOKEN") or "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"
 
 if not HF_TOKEN or HF_TOKEN.startswith("hf_xxxx"):
     raise ValueError("❌ Please set your Hugging Face API key in rag_pipeline.py!")
