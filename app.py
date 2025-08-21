@@ -19,10 +19,17 @@ with st.sidebar:
 st.markdown("<h1 style='text-align:center;color:#4CAF50'>🌟 Curiosity AI – Your Science Buddy 🌟</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center'>Ask Class 8 Science questions and get answers!</p>", unsafe_allow_html=True)
 
-# Simple QA function that doesn't require complex dependencies
+# Import your actual RAG function
+try:
+    from rag_pipeline import rag_qa
+    st.success("✅ RAG system loaded successfully!")
+except ImportError as e:
+    st.error(f"❌ Failed to load RAG system: {e}")
+    st.info("Falling back to simple mode...")
+
+# Fallback simple QA function
 def simple_qa(query):
-    """Simple QA function that doesn't require complex dependencies"""
-    # This is a placeholder - in a real app, you'd use your RAG system
+    """Simple QA function as fallback"""
     science_answers = {
         "photosynthesis": "Photosynthesis is the process by which plants use sunlight, water, and carbon dioxide to create oxygen and energy in the form of sugar.",
         "force": "Force is a push or pull upon an object resulting from its interaction with another object.",
@@ -54,7 +61,14 @@ if st.button("✨ Ask AI"):
         with st.spinner("Thinking... 🤔"):
             try:
                 start_time = time.time()
-                answer, sources = simple_qa(query)
+                
+                # Try to use the RAG system first
+                try:
+                    answer, sources = rag_qa(query)
+                except Exception as rag_error:
+                    st.warning("RAG system unavailable, using fallback...")
+                    answer, sources = simple_qa(query)
+                
                 end_time = time.time()
                 
                 st.markdown("### ✅ Answer")
@@ -67,5 +81,6 @@ if st.button("✨ Ask AI"):
                             st.markdown(f"**Source {i}:** {src}")
                 else:
                     st.info("No sources found for this answer.")
+                    
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
