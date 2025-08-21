@@ -117,7 +117,8 @@ Answer:
         llm = HuggingFaceHub(
             repo_id=LLM_REPO_ID,
             model_kwargs={"temperature": 0.2, "max_new_tokens": 256},
-            huggingfacehub_api_token=HF_TOKEN
+            huggingfacehub_api_token=HF_TOKEN,
+            task="text2text-generation"  # must set task
         )
     except Exception as e:
         return f"❌ Error initializing HuggingFaceHub LLM: {e}", []
