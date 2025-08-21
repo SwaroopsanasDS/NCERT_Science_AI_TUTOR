@@ -16,11 +16,8 @@ MERGED_PDF = "data/Class8_Science_Curiosity_Merged.pdf"
 CLEANED_TXT = "data/Class8_Science_Curiosity_Cleaned.txt"
 FAISS_DIR = "data/faiss_index"
 
-# Free HuggingFace embedding model
+# Embeddings model
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-
-# Force embeddings to run on CPU
-DEVICE = "cpu"
 
 # =========================
 # STEP 1: MERGE PDFs
@@ -74,7 +71,7 @@ def build_faiss_index(txt_file=CLEANED_TXT, faiss_dir=FAISS_DIR):
 
     embeddings = HuggingFaceEmbeddings(
         model_name=EMBEDDING_MODEL,
-        model_kwargs={"device": DEVICE}  # force CPU
+        model_kwargs={"device": "cpu", "device_map": None}  # FIX: force CPU
     )
 
     vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
