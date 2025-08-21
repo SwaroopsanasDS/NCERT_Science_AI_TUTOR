@@ -15,8 +15,7 @@ load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
 if not HF_TOKEN:
     raise ValueError(
-        "HF_TOKEN is missing! Set it in .env or Streamlit secrets. "
-        "Without it, HuggingFace models cannot be accessed."
+        "HF_TOKEN is missing! Set it in .env or Streamlit secrets."
     )
 
 # -------------------
@@ -27,7 +26,7 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 LLM_REPO_ID = "google/flan-t5-base"  # public model
 
 # -------------------
-# Load FAISS
+# Load FAISS vectorstore
 # -------------------
 def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
     if not os.path.exists(persist_directory):
@@ -43,13 +42,13 @@ def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
     return vectorstore
 
 # -------------------
-# RAG QA
+# RAG QA function
 # -------------------
 def rag_qa(query: str) -> Tuple[str, list]:
     if not query.strip():
         return "❌ Query is empty.", []
 
-    # Load vector store
+    # Load FAISS vectorstore
     try:
         vectorstore = load_vectorstore()
         retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
@@ -77,12 +76,12 @@ Answer:
             repo_id=LLM_REPO_ID,
             model_kwargs={"temperature": 0.2, "max_new_tokens": 256},
             huggingfacehub_api_token=HF_TOKEN,
-            task="text2text-generation"  # must specify task for Flan-T5
+            task="text2text-generation"  # explicitly set for Flan-T5
         )
     except Exception as e:
         return f"❌ Error initializing HuggingFaceHub LLM: {e}", []
 
-    # Build RAG chain
+    # Build RetrievalQA chain
     try:
         qa = RetrievalQA.from_chain_type(
             llm=llm,
