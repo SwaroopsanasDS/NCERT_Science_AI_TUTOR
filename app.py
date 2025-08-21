@@ -1,3 +1,4 @@
+# app.py
 import streamlit as st
 from rag_pipeline import rag_qa
 
@@ -35,16 +36,16 @@ if st.button("✨ Ask AI"):
         st.warning("Please enter a question!")
     else:
         with st.spinner("Thinking... 🤔"):
-            try:
-                answer, sources = rag_qa(query)
-                st.markdown("### ✅ Answer")
-                st.success(answer.strip())
+            answer, sources = rag_qa(query)
 
-                if sources:
-                    with st.expander("📚 Show Sources"):
-                        for i, src in enumerate(sources, 1):
-                            st.markdown(f"**Source {i}:** {src}")
-                else:
-                    st.info("No sources found for this answer.")
-            except Exception as e:
-                st.error(f"❌ Error running RAG QA: {e}")
+        # --- Show Answer ---
+        st.markdown("### ✅ Answer")
+        st.success(answer.strip())
+
+        # --- Show Sources ---
+        if sources:
+            with st.expander("📚 Show Sources"):
+                for i, src in enumerate(sources, 1):
+                    st.markdown(f"**Source {i}:** {src}")
+        else:
+            st.info("No sources found for this answer.")
