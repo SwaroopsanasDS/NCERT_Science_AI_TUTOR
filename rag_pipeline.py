@@ -86,7 +86,8 @@ Answer:
 """
         prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
-        # Explicitly set the task for the model
+        # Create the LLM with explicit parameters
+        # For Flan-T5 models, we need to use text2text-generation task
         llm = HuggingFaceHub(
             repo_id=LLM_REPO_ID,
             model_kwargs={
@@ -95,10 +96,11 @@ Answer:
                 "max_new_tokens": 256
             },
             huggingfacehub_api_token=HF_TOKEN,
-            task="text2text-generation"  # Explicitly set the task
+            task="text2text-generation"  # Explicitly set the task for Flan-T5
         )
 
-        qa = RetrievalQA.from_chain_type(
+        # Create the QA chain
+        qa_chain = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
@@ -106,7 +108,8 @@ Answer:
             return_source_documents=True,
         )
 
-        result = qa.invoke({"query": query})
+        # Execute the query
+        result = qa_chain.invoke({"query": query})
         
         # Extract source information
         sources = []
@@ -118,6 +121,7 @@ Answer:
                     sources.append("Unknown source")
         
         return result["result"], sources
+        
     except Exception as e:
         logger.error(f"❌ Error in RAG pipeline: {str(e)}")
         raise
