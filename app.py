@@ -1,5 +1,6 @@
+# app.py
 import streamlit as st
-from rag_pipeline import rag_qa  # Load your RAG function
+from rag_pipeline import rag_qa
 
 # --- Page Config ---
 st.set_page_config(
@@ -39,6 +40,7 @@ if st.button("✨ Ask AI"):
                 answer, sources = rag_qa(query)
                 st.markdown("### ✅ Answer")
                 st.success(answer.strip())
+
                 if sources:
                     with st.expander("📚 Show Sources"):
                         for i, src in enumerate(sources, 1):
