@@ -2,7 +2,7 @@
 import os
 import numpy as np
 from typing import List, Tuple
-from huggingface_hub import InferenceClient
+from huggingface_hub import InferenceClient, HfApi
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
@@ -15,7 +15,10 @@ from dotenv import load_dotenv
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
 if not HF_TOKEN:
-    raise ValueError("HF_TOKEN is missing! Set it in .env or Streamlit secrets.")
+    raise ValueError(
+        "HF_TOKEN is missing! Set it in .env or Streamlit secrets. "
+        "Without it, HuggingFace models cannot be accessed."
+    )
 
 # -------------------
 # Config
@@ -23,6 +26,21 @@ if not HF_TOKEN:
 FAISS_DIR = "data/faiss_index"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 LLM_REPO_ID = "google/flan-t5-base"  # public model
+
+# -------------------
+# Validate Hugging Face repo access
+# -------------------
+def validate_hf_token_and_repo(token: str, repo_id: str):
+    try:
+        api = HfApi(token=token)
+        model_info = api.model_info(repo_id)
+        print(f"✅ Hugging Face token works. Model '{model_info.modelId}' is accessible.")
+    except Exception as e:
+        raise ValueError(
+            f"❌ Cannot access Hugging Face model '{repo_id}'. Check your HF_TOKEN and repo ID.\nDetails: {e}"
+        )
+
+validate_hf_token_and_repo(HF_TOKEN, LLM_REPO_ID)
 
 # -------------------
 # Minimal HF API Embeddings (no local downloads)
@@ -36,7 +54,6 @@ class HFAPIEmbeddings:
         vectors = []
         for t in texts:
             out = self.client.feature_extraction(t, truncate=True)
-            # Mean-pool token embeddings
             if isinstance(out, list) and len(out) > 0 and isinstance(out[0], list):
                 vec = np.array(out).mean(axis=0).tolist()
             else:
@@ -54,9 +71,11 @@ class HFAPIEmbeddings:
 # Load FAISS
 # -------------------
 def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
-    embeddings = HFAPIEmbeddings(model_name=EMBEDDING_MODEL, api_key=HF_TOKEN)
     if not os.path.exists(persist_directory):
-        raise FileNotFoundError(f"FAISS index not found at {persist_directory}. Run preprocessing first.")
+        raise FileNotFoundError(
+            f"FAISS index not found at '{persist_directory}'. Run preprocessing first."
+        )
+    embeddings = HFAPIEmbeddings(model_name=EMBEDDING_MODEL, api_key=HF_TOKEN)
     vectorstore = FAISS.load_local(
         persist_directory,
         embeddings,
@@ -68,6 +87,9 @@ def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
 # RAG QA
 # -------------------
 def rag_qa(query: str) -> Tuple[str, list]:
+    if not query.strip():
+        return "❌ Query is empty.", []
+
     vectorstore = load_vectorstore()
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
@@ -99,5 +121,8 @@ Answer:
         return_source_documents=True
     )
 
-    result = qa({"query": query})
-    return result["result"], result.get("source_documents", [])
+    try:
+        result = qa({"query": query})
+        return result["result"], result.get("source_documents", [])
+    except Exception as e:
+        return f"❌ Error running RAG QA: {e}", []
