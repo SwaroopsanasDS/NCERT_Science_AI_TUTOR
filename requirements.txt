@@ -1,8 +1,9 @@
 streamlit
-tqdm
-PyPDF2
 faiss-cpu
 langchain
 langchain-community
 sentence-transformers
 huggingface_hub
+PyPDF2
+tqdm
+torch
