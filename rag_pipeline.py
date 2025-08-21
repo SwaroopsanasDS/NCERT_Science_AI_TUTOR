@@ -1,127 +1,95 @@
 # rag_pipeline.py
 import os
 import logging
-from pathlib import Path
 from typing import Tuple, List
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try to import with error handling
+# Import with error handling
 try:
     from langchain_community.embeddings import HuggingFaceEmbeddings
     from langchain_community.vectorstores import FAISS
     from langchain.prompts import PromptTemplate
     from langchain.chains import RetrievalQA
-    from langchain.llms import HuggingFaceHub
-    logger.info("✅ All LangChain imports successful")
+    from transformers import pipeline
+    logger.info("✅ All imports successful")
 except ImportError as e:
-    logger.error(f"❌ Failed to import LangChain modules: {e}")
+    logger.error(f"❌ Import failed: {e}")
     raise
 
-# =========================
-# CONFIG
-# =========================
+# Configuration
 FAISS_DIR = "data/faiss_index"
-LLM_REPO_ID = "google/flan-t5-base"  # small, CPU-friendly text2text model
-HF_TOKEN = os.getenv("HF_TOKEN")  # Set this in Streamlit secrets
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
-# =========================
-# Load FAISS Vector Store
-# =========================
-def load_vectorstore(persist_directory: str = FAISS_DIR):
+def load_vectorstore():
+    """Load the FAISS vector store"""
     try:
-        # Check if the FAISS index exists
-        if not os.path.exists(persist_directory):
-            raise FileNotFoundError(f"FAISS index directory not found at {persist_directory}")
+        if not os.path.exists(FAISS_DIR):
+            raise FileNotFoundError(f"FAISS index not found at {FAISS_DIR}")
             
-        # Check for required files
-        required_files = ["index.faiss", "index.pkl"]
-        for file in required_files:
-            file_path = os.path.join(persist_directory, file)
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"Required file {file} not found in FAISS directory")
-        
         embeddings = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL,
-            model_kwargs={"device": "cpu"}  # CPU-only for Streamlit Cloud
+            model_kwargs={"device": "cpu"}
         )
         
         vectorstore = FAISS.load_local(
-            persist_directory,
+            FAISS_DIR,
             embeddings,
             allow_dangerous_deserialization=True
         )
         logger.info("✅ FAISS index loaded successfully")
         return vectorstore
     except Exception as e:
-        logger.error(f"❌ Error loading FAISS index: {str(e)}")
+        logger.error(f"❌ Error loading FAISS: {e}")
         raise
 
-# =========================
-# RAG (Retrieval + Generation)
-# =========================
 def rag_qa(query: str) -> Tuple[str, List[str]]:
+    """Main RAG QA function"""
     try:
-        # Check if HF_TOKEN is available
-        if not HF_TOKEN:
-            raise ValueError("Hugging Face token not found. Please set HF_TOKEN in your environment variables.")
-            
+        # Load vector store
         vectorstore = load_vectorstore()
         retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-
-        prompt_template = """
-You are an NCERT Class 8 Science AI Tutor.
-Use the provided context to answer clearly, concisely, and in simple words.
+        
+        # Retrieve relevant documents
+        docs = retriever.get_relevant_documents(query)
+        context = "\n".join([doc.page_content for doc in docs])
+        
+        # Create prompt
+        prompt = f"""
+You are an NCERT Class 8 Science AI Tutor. Answer the question based only on the provided context.
 If the answer is not in the context, say "I don't know."
 
 Context:
 {context}
 
-Question: {question}
+Question: {query}
 
 Answer:
 """
-        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-
-        # Create the LLM with explicit parameters
-        # For Flan-T5 models, we need to use text2text-generation task
-        llm = HuggingFaceHub(
-            repo_id=LLM_REPO_ID,
-            model_kwargs={
-                "temperature": 0.2, 
-                "max_length": 512,
-                "max_new_tokens": 256
-            },
-            huggingfacehub_api_token=HF_TOKEN,
-            task="text2text-generation"  # Explicitly set the task for Flan-T5
+        # Use a simpler model that works reliably
+        generator = pipeline(
+            "text2text-generation",
+            model="google/flan-t5-small",  # Smaller, more reliable version
+            max_length=512,
+            temperature=0.2
         )
-
-        # Create the QA chain
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=retriever,
-            chain_type_kwargs={"prompt": prompt},
-            return_source_documents=True,
-        )
-
-        # Execute the query
-        result = qa_chain.invoke({"query": query})
         
-        # Extract source information
+        # Generate answer
+        result = generator(prompt, max_new_tokens=256)
+        answer = result[0]['generated_text']
+        
+        # Extract sources
         sources = []
-        if "source_documents" in result:
-            for doc in result["source_documents"]:
-                if hasattr(doc, 'metadata') and 'source' in doc.metadata:
-                    sources.append(doc.metadata['source'])
-                else:
-                    sources.append("Unknown source")
+        for doc in docs:
+            if hasattr(doc, 'metadata') and 'source' in doc.metadata:
+                sources.append(doc.metadata['source'])
+            else:
+                sources.append("Textbook reference")
         
-        return result["result"], sources
+        return answer, sources
         
     except Exception as e:
-        logger.error(f"❌ Error in RAG pipeline: {str(e)}")
+        logger.error(f"❌ Error in RAG pipeline: {e}")
         raise
