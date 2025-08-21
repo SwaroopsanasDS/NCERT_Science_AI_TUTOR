@@ -31,7 +31,7 @@ def load_vectorstore() -> FAISS:
 
     embeddings = HuggingFaceEmbeddings(
         model_name=EMBEDDING_MODEL,
-        model_kwargs={"device": "cpu", "device_map": None}  # force CPU
+        model_kwargs={"device": "cpu"}  # only CPU
     )
 
     vectorstore = FAISS.load_local(
