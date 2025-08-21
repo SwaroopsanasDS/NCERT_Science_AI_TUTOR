@@ -15,6 +15,7 @@ with st.sidebar:
     st.write("👉 Example: *What is fertilization?*")
     st.write("👉 Example: *Why is LPG considered a better fuel than coal?*")
     st.write("👉 Example: *What is crop rotation and why is it practiced?*")
+    st.write("👉 Example: *What is the law of reflection of light?*")
     st.markdown("---")
     st.write("Built with ❤️ using **AI + Science**")
 
