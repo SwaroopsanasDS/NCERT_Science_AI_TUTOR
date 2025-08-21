@@ -84,15 +84,17 @@ def load_vectorstore(persist_directory: str = FAISS_DIR) -> FAISS:
     return vectorstore
 
 # -------------------
-# RAG QA
+# RAG QA (latest LangChain compatible)
 # -------------------
 def rag_qa(query: str) -> Tuple[str, list]:
     if not query.strip():
         return "❌ Query is empty.", []
 
+    # Load vector store
     vectorstore = load_vectorstore()
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
+    # Prompt
     prompt_template = """
 You are an NCERT Class 8 Science AI Tutor.
 Use the provided context to answer clearly, concisely, and in simple words.
@@ -107,12 +109,17 @@ Answer:
 """
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
-    llm = HuggingFaceHub(
-        repo_id=LLM_REPO_ID,
-        model_kwargs={"temperature": 0.2, "max_new_tokens": 256},
-        huggingfacehub_api_token=HF_TOKEN
-    )
+    # HuggingFaceHub LLM (latest LangChain)
+    try:
+        llm = HuggingFaceHub.from_model_id(
+            model_id=LLM_REPO_ID,
+            model_kwargs={"temperature": 0.2, "max_new_tokens": 256},
+            huggingfacehub_api_token=HF_TOKEN
+        )
+    except Exception as e:
+        return f"❌ Error initializing HuggingFaceHub LLM: {e}", []
 
+    # Build RAG chain
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=retriever,
@@ -121,8 +128,8 @@ Answer:
         return_source_documents=True
     )
 
+    # Run query
     try:
         result = qa({"query": query})
         return result["result"], result.get("source_documents", [])
     except Exception as e:
-        return f"❌ Error running RAG QA: {e}", []
