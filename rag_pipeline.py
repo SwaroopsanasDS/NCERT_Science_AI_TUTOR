@@ -20,7 +20,6 @@ if not HF_TOKEN:
 
 LLM_REPO_ID = "google/flan-t5-base"
 
-
 # -----------------------------
 # Load or rebuild FAISS index
 # -----------------------------
@@ -42,7 +41,6 @@ def load_vectorstore() -> FAISS:
     )
     return vectorstore
 
-
 # -----------------------------
 # RAG QA function
 # -----------------------------
@@ -52,4 +50,34 @@ def rag_qa(query: str) -> Tuple[str, list]:
 
     prompt_template = """
 You are an NCERT Class 8 Science AI Tutor.
-Use the provided context to answer
+Use the provided context to answer clearly, concisely, and in simple words.
+If the answer is not in the context, say "I don't know."
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:
+"""
+    prompt = PromptTemplate(
+        template=prompt_template,
+        input_variables=["context", "question"]
+    )
+
+    llm = HuggingFaceHub(
+        repo_id=LLM_REPO_ID,
+        model_kwargs={"temperature": 0.2, "max_new_tokens": 256, "task": "text2text-generation"},
+        huggingfacehub_api_token=HF_TOKEN
+    )
+
+    qa = RetrievalQA.from_chain_type(
+        llm=llm,
+        retriever=retriever,
+        chain_type="stuff",
+        chain_type_kwargs={"prompt": prompt},
+        return_source_documents=True,
+    )
+
+    result = qa({"query": query})
+    return result["result"], result.get("source_documents", [])
