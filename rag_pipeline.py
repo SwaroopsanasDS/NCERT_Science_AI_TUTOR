@@ -1,4 +1,4 @@
-# rag_pipeline.py
+# rag_pipeline.py - Fix the embedding import
 import os
 import logging
 from typing import Tuple, List
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 # Import with error handling
 try:
-    from langchain_community.embeddings import HuggingFaceInferenceEmbeddings
+    from langchain_community.embeddings import HuggingFaceEmbeddings  # Fixed import name
     from langchain_community.vectorstores import FAISS
     from langchain.prompts import PromptTemplate
     from langchain.chains import RetrievalQA
@@ -30,7 +30,7 @@ def load_vectorstore():
         if not os.path.exists(FAISS_DIR):
             raise FileNotFoundError(f"FAISS index not found at {FAISS_DIR}")
             
-        embeddings = HuggingFaceEmbeddings(
+        embeddings = HuggingFaceEmbeddings(  # Fixed class name
             model_name=EMBEDDING_MODEL,
             model_kwargs={"device": "cpu"}
         )
