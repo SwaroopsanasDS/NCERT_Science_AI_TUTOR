@@ -3,12 +3,10 @@
 import os
 import re
 from tqdm import tqdm
-import PyPDF2
 from PyPDF2 import PdfMerger, PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-
 
 # =========================
 # CONFIG
@@ -21,19 +19,18 @@ FAISS_DIR = "data/faiss_index"
 # Free HuggingFace embedding model
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
+# Force embeddings to run on CPU
+DEVICE = "cpu"
 
 # =========================
 # STEP 1: MERGE PDFs
 # =========================
 def merge_pdfs(input_dir=RAW_DIR, output_file=MERGED_PDF):
     merger = PdfMerger()
-
     pdf_files = [f for f in os.listdir(input_dir) if f.lower().endswith(".pdf")]
-
-    skip_keywords = ["prelims", "qr"]  # skip extra PDFs
+    skip_keywords = ["prelims", "qr"]
     chapter_pdfs = [f for f in pdf_files if not any(key in f.lower() for key in skip_keywords)]
     chapter_pdfs.sort()
-
     print(f"Merging {len(chapter_pdfs)} PDFs...")
 
     for pdf in tqdm(chapter_pdfs):
@@ -43,16 +40,14 @@ def merge_pdfs(input_dir=RAW_DIR, output_file=MERGED_PDF):
     merger.close()
     print(f"[INFO] Merged PDF saved at: {output_file}")
 
-
 # =========================
 # STEP 2: EXTRACT & CLEAN TEXT
 # =========================
 def clean_text(text: str) -> str:
-    text = re.sub(r"^\s*\d+\s*$", "", text, flags=re.MULTILINE)  # remove page numbers
-    text = re.sub(r"\s+", " ", text)  # collapse whitespace
-    text = text.replace("Science - Class VIII", "")  # remove headers
+    text = re.sub(r"^\s*\d+\s*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\s+", " ", text)
+    text = text.replace("Science - Class VIII", "")
     return text.strip()
-
 
 def extract_and_clean_text(pdf_file=MERGED_PDF, output_file=CLEANED_TXT):
     pdf_reader = PdfReader(pdf_file)
@@ -66,7 +61,6 @@ def extract_and_clean_text(pdf_file=MERGED_PDF, output_file=CLEANED_TXT):
         f.write(cleaned)
     print(f"[INFO] Cleaned text saved at: {output_file}")
 
-
 # =========================
 # STEP 3: BUILD FAISS INDEX
 # =========================
@@ -78,12 +72,14 @@ def build_faiss_index(txt_file=CLEANED_TXT, faiss_dir=FAISS_DIR):
     chunks = splitter.split_text(text)
     print(f"[INFO] Total chunks created: {len(chunks)}")
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-    vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
+    embeddings = HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        model_kwargs={"device": DEVICE}  # force CPU
+    )
 
+    vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
     vectorstore.save_local(faiss_dir)
     print(f"[INFO] FAISS index saved at: {faiss_dir}")
-
 
 # =========================
 # MAIN PIPELINE
