@@ -6,6 +6,6 @@ faiss-cpu
 langchain
 langchain-community
 langchain-openai
-langchain-huggingface   # ✅ add this
+langchain-huggingface
 sentence-transformers
 huggingface_hub
