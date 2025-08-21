@@ -18,13 +18,13 @@ HF_TOKEN = os.getenv("HF_TOKEN") or "hf_your_token_here"
 if not HF_TOKEN:
     raise ValueError("Set your Hugging Face token in HF_TOKEN env variable or here.")
 
-LLM_REPO_ID = "google/flan-t5-base"
+# Use small LLM to avoid memory issues on Streamlit Cloud
+LLM_REPO_ID = "google/flan-t5-small"
 
 # -----------------------------
 # Load or rebuild FAISS index
 # -----------------------------
 def load_vectorstore() -> FAISS:
-    # Rebuild FAISS if folder doesn't exist or is empty
     if not Path(FAISS_DIR).exists() or not any(Path(FAISS_DIR).iterdir()):
         print("[INFO] FAISS index not found. Building new index...")
         build_faiss_index(txt_file=CLEANED_TXT, faiss_dir=FAISS_DIR)
@@ -67,7 +67,11 @@ Answer:
 
     llm = HuggingFaceHub(
         repo_id=LLM_REPO_ID,
-        model_kwargs={"temperature": 0.2, "max_new_tokens": 256, "task": "text2text-generation"},
+        model_kwargs={
+            "temperature": 0.2,
+            "max_new_tokens": 256,
+            "task": "text2text-generation"
+        },
         huggingfacehub_api_token=HF_TOKEN
     )
 
