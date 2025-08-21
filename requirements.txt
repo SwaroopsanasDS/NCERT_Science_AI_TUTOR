@@ -1,7 +1,8 @@
-streamlit==1.27.0
-python-dotenv==1.0.0
-tqdm==4.66.1
-PyPDF2==3.0.1
-langchain==0.1.202
-langchain-community==0.0.259
-huggingface-hub==0.16.4
+streamlit
+tqdm
+PyPDF2
+faiss-cpu
+langchain
+langchain-community
+sentence-transformers
+huggingface_hub
